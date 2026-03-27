@@ -1,14 +1,25 @@
 use std::process::{Child, Command, Stdio};
 use std::sync::OnceLock;
 
-const QML_DIR: &str = env!("CARGO_MANIFEST_DIR");
-
 fn qml_path(name: &str) -> String {
+    // Check system-wide install
     let installed = format!("/usr/share/pinentry-fprint/qml/{name}");
     if std::path::Path::new(&installed).exists() {
         return installed;
     }
-    format!("{QML_DIR}/qml/{name}")
+    // Check user-local install (next to binary)
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(bin_dir) = exe.parent()
+    {
+        // ~/.local/bin/../share/pinentry-fprint/qml/
+        let user_share = bin_dir.join("../share/pinentry-fprint/qml").join(name);
+        if user_share.exists() {
+            return user_share.to_string_lossy().into_owned();
+        }
+    }
+    // Dev fallback: source tree
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    format!("{manifest}/qml/{name}")
 }
 
 #[derive(Debug, Clone, Copy)]
